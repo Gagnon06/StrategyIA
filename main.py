@@ -72,6 +72,7 @@ def get_serial(serial):
         raise Exception("Le choix du type de port serie est invalide")
 
 if __name__ == '__main__':
+
     parser = set_arg_parser()
     args = parser.parse_args()
     color = get_color(args.color)

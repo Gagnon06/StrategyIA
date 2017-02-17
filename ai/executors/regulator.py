@@ -48,7 +48,7 @@ class PositionRegulator(Executor):
         for cmd in commands.values():
             if cmd.command is AICommandType.MOVE:
                 robot_idx = cmd.robot_id
-                retroaction_pose = self.ws.game_state.get_player_pose(robot_idx)
+                retroaction_pose = self.ws.game_state.game.friends.players[robot_idx].pose
                 cmd.speed = self.regulators[robot_idx].\
                     update_pid_and_return_speed_command(cmd,
                                                         retroaction_pose,
@@ -83,8 +83,9 @@ class PI(object):
     def update_pid_and_return_speed_command(self, cmd, player_pose, delta_t=0.030, idx=4, robot_speed=0.75):
         """ Met à jour les composants du pid et retourne une commande en vitesse. """
         assert isinstance(cmd, AICommand), "La consigne doit etre une Pose dans le PI"
-        Kp = 0.6
-        Kd = 0.15
+        #print("regulator_pose", [player_pose.position.x, player_pose.position.y, player_pose.orientation])
+        Kp = 1
+        Kd = 0.6
         self.paths[idx] = cmd.path
 
         # if len(self.paths[idx]) > 0 and\
@@ -102,7 +103,6 @@ class PI(object):
         self.last_err_x = e_x
         self.last_err_y = e_y
         vit = np.array([Kp*e_x+Kd*d_e_x, Kp*e_y+Kd*d_e_y])
-
         norm = np.linalg.norm(vit)
         if norm > 1:
             vit /= norm
@@ -110,7 +110,7 @@ class PI(object):
         #    return Pose(Position(0, 0))
 
         vit *= robot_speed
-        print('FUUUUUUUUUUUUUUUUUUUUUUU',vit)
+        #print('FUUUUUUUUUUUUUUUUUUUUUUU', vit)
         return Pose(Position(vit[0], vit[1]))
 
     def path_manager(self, player_pose, idx):
