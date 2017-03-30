@@ -7,7 +7,7 @@ from RULEngine.Util.Pose import Pose
 from RULEngine.Util.Position import Position
 from RULEngine.Util.constant import FIELD_GOAL_RADIUS, PLAYER_PER_TEAM, FIELD_X_RIGHT, FIELD_X_LEFT
 from RULEngine.Util.area import stayInsideCircle, stayOutsideCircle
-from RULEngine.Util.geometry import get_angle, get_closest_point_on_line
+from RULEngine.Util.geometry import get_angle, get_closest_point_on_line, get_distance
 from ai.Util.ai_command import AICommand, AICommandType
 
 __author__ = 'Robocup ULaval'
@@ -53,16 +53,34 @@ class ProtectGoal(Action):
         Calcul la pose que doit prendre le gardien en fonction de la position de la balle.
         :return: Un tuple (Pose, kick) où Pose est la destination du gardien et kick est nul (on ne botte pas)
         """
+        dt = 0.03
         goalkeeper_position = self.game_state.get_player_position(self.player_id)
         ball_position = self.game_state.get_ball_position()
+        ball_velocity = self.game_state.get_ball_velocity()
+        next_ball_position = ball_position
+        #next_ball_position.x += ball_velocity.x
+        #next_ball_position.y += ball_velocity.y
+
         goal_x = self.game_state.const["FIELD_X_RIGHT"] if self.is_right_goal else self.game_state.const["FIELD_X_LEFT"]
         goal_position = Position(goal_x, 0)
 
         # Calcul de la position d'interception entre la balle et le centre du but
-        destination_position = get_closest_point_on_line(goalkeeper_position, goal_position, ball_position)
+        destination_position = get_closest_point_on_line(goalkeeper_position, goal_position, next_ball_position)
+
+        # Verification que destination_position est devant le but
+        dist_destination_to_ball = get_distance(destination_position, next_ball_position)
+        dist_goal_to_ball = get_distance(next_ball_position, goal_position)
+        if dist_goal_to_ball < dist_destination_to_ball:
+            goal_to_destination_x = goal_position.x - destination_position.x
+            goal_to_destination_y = goal_position.y - destination_position.y
+            destination_position.x = goal_position.x + goal_to_destination_x
+            destination_position.y = goal_position.y + goal_to_destination_y
+            print('dans le if')
 
         # Vérification que destination_position respecte la distance minimale
         destination_position = stayOutsideCircle(destination_position, goal_position, self.minimum_distance)
+        print('velocity ball = ', ball_velocity.x)
+
 
         # Vérification que destination_position respecte la distance maximale
         if self.maximum_distance is None:
@@ -72,7 +90,7 @@ class ProtectGoal(Action):
             destination_position = stayInsideCircle(destination_position, goal_position, self.maximum_distance)
 
         # Calcul de l'orientation de la pose de destination
-        destination_orientation = get_angle(destination_position, ball_position)
+        destination_orientation = get_angle(destination_position, next_ball_position)
 
         destination_pose = Pose(destination_position, destination_orientation)
         kick_strength = 0
